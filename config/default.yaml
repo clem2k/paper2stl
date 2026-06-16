@@ -1,0 +1,37 @@
+# Rhodia pipeline — default configuration.
+# Override any subset; omitted keys fall back to the dataclass defaults.
+
+device: null            # null = auto (cuda > mps > cpu); or "cuda"/"mps"/"cpu"
+
+preprocess:
+  grid_hue_ranges: [[90, 140]]   # OpenCV hue band for the blue/violet grid
+  grid_min_saturation: 25
+  pencil_block_size: 35
+  pencil_C: 10
+  hough_threshold: 50
+  hough_min_line_length: 40
+  hough_max_line_gap: 8
+  line_merge_angle_deg: 5.0
+  line_merge_dist_px: 12.0
+
+metadata:
+  ocr_backend: auto       # auto | easyocr | tesseract | none
+  cartouche_frac: [0.62, 0.18]   # upper-right crop: (x_start_frac, height_frac)
+  red_hue_ranges: [[0, 10], [170, 179]]
+  red_min_saturation: 90
+  red_min_value: 60
+  red_min_box_area_frac: 0.002
+
+reconstruction:
+  voxel_resolution: 128
+  fill_missing: true
+  default_extrude_frac: 0.5
+  use_neural_completion: false
+  neural_weights: null
+  marching_cubes_level: 0.5
+  smoothing_iterations: 5
+
+export:
+  stl_binary: true
+  target_size_mm: null     # e.g. 100 to rescale longest dim to 100 mm
+  ensure_watertight: true
