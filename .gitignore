@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Rhodia generated artifacts
+examples/scans/
+examples/out.stl
+*.stl
+debug/
