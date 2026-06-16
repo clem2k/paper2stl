@@ -26,7 +26,9 @@ from .preprocessing import extract_pencil, remove_grid, vectorize_lines
 from .preprocessing.vectorize import rasterize_silhouette
 from .reconstruction import ViewSilhouette, reconstruct
 from .export import export_stl, occupancy_to_mesh
-from .utils.io import list_images, read_image
+import cv2
+
+from .utils.io import list_images, read_image, save_debug
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,9 @@ class Pipeline:
         segments = vectorize_lines(binary, self.cfg.preprocess)
         silhouette = rasterize_silhouette(segments, binary.shape)
 
+        if self.cfg.debug_dir is not None:
+            self._save_debug_images(path.stem, gray, binary, segments, silhouette)
+
         # B. Metadata
         view, conf = classify_view(bgr, self.ocr, self.cfg.metadata)
         if view is None:
@@ -79,6 +84,32 @@ class Pipeline:
             path.name, view, conf, len(segments), len(refs),
         )
         return PageResult(path, view, conf, silhouette, refs)
+
+    def _save_debug_images(
+        self,
+        stem: str,
+        gray: np.ndarray,
+        binary: np.ndarray,
+        segments: list,
+        silhouette: np.ndarray,
+    ) -> None:
+        """Write per-page intermediate images as JPEGs into cfg.debug_dir."""
+        debug_dir = Path(self.cfg.debug_dir)
+        save_debug(gray, debug_dir / f"{stem}_1_grid_removed.jpg")
+        save_debug(binary, debug_dir / f"{stem}_2_binary.jpg")
+        overlay = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        for s in segments:
+            cv2.line(
+                overlay,
+                (int(round(s.x1)), int(round(s.y1))),
+                (int(round(s.x2)), int(round(s.y2))),
+                (0, 0, 255),
+                2,
+                cv2.LINE_AA,
+            )
+        save_debug(overlay, debug_dir / f"{stem}_3_segments.jpg")
+        save_debug(silhouette, debug_dir / f"{stem}_4_silhouette.jpg")
+        logger.debug("Debug images saved for %s → %s", stem, debug_dir)
 
     def _blank_cartouche(self, binary: np.ndarray) -> None:
         """Zero the upper-right cartouche region in-place."""

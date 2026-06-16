@@ -39,6 +39,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable neural completion with these weights",
     )
     p.add_argument("--size-mm", type=float, help="rescale longest dim to N mm")
+    p.add_argument(
+        "--grid-tolerance", type=float, metavar="N", default=None,
+        help=(
+            "grid removal tolerance (default 0.0); negative = stricter, "
+            "positive = more aggressive. Each unit expands the hue range by "
+            "±10 and lowers the saturation floor by 5."
+        ),
+    )
+    p.add_argument(
+        "--straighten-pct", type=float, metavar="PCT", default=None,
+        help=(
+            "line straightening percentage 0–100 (default 100). "
+            "100 = fully straightened via TLS refit; "
+            "0 = raw Hough endpoints kept (preserves curves/wobble); "
+            "intermediate values blend the two."
+        ),
+    )
+    p.add_argument(
+        "--debug-dir", type=Path, metavar="DIR", default=None,
+        help=(
+            "save per-page debug images (grid removal, binary strokes, "
+            "detected segments, silhouette) as JPEGs into DIR"
+        ),
+    )
     p.add_argument("-v", "--verbose", action="count", default=0)
     p.add_argument("--info", action="store_true", help="print device info and exit")
     return p
@@ -56,6 +80,12 @@ def _apply_overrides(cfg: PipelineConfig, args) -> PipelineConfig:
         cfg.reconstruction.neural_weights = str(args.neural_weights)
     if args.size_mm:
         cfg.export.target_size_mm = args.size_mm
+    if args.grid_tolerance is not None:
+        cfg.preprocess.grid_tolerance = args.grid_tolerance
+    if args.straighten_pct is not None:
+        cfg.preprocess.line_straighten_pct = args.straighten_pct
+    if args.debug_dir is not None:
+        cfg.debug_dir = str(args.debug_dir)
     return cfg
 
 
