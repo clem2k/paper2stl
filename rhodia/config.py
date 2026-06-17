@@ -17,6 +17,9 @@ class PreprocessConfig:
         default_factory=lambda: [(90, 140)]  # cyan→violet band (OpenCV H in 0..179)
     )
     grid_min_saturation: int = 25
+    # grid_tolerance: 0.0 = default; negative = stricter removal; positive = more
+    # aggressive (expands hue range ±10 per unit, lowers sat threshold by 5 per unit).
+    grid_tolerance: float = 0.0
     pencil_block_size: int = 35      # adaptive threshold window (odd)
     pencil_C: int = 10               # adaptive threshold bias
     hough_threshold: int = 50
@@ -24,6 +27,9 @@ class PreprocessConfig:
     hough_max_line_gap: int = 8
     line_merge_angle_deg: float = 5.0
     line_merge_dist_px: float = 12.0
+    # line_straighten_pct: 100 = full TLS refit (perfectly straight, default);
+    # 0 = keep raw Hough endpoints (preserves curves/wobble).
+    line_straighten_pct: float = 100.0
 
 
 @dataclass
@@ -63,6 +69,9 @@ class PipelineConfig:
     metadata: MetadataConfig = field(default_factory=MetadataConfig)
     reconstruction: ReconstructionConfig = field(default_factory=ReconstructionConfig)
     export: ExportConfig = field(default_factory=ExportConfig)
+    # If set, per-page debug images (grid removal, binary, segments, silhouette)
+    # are written as JPEGs into this directory.
+    debug_dir: str | None = None
 
     # ---- (de)serialisation -------------------------------------------------
     @classmethod
@@ -92,6 +101,7 @@ class PipelineConfig:
             metadata=build(MetadataConfig, data.get("metadata")),
             reconstruction=build(ReconstructionConfig, data.get("reconstruction")),
             export=build(ExportConfig, data.get("export")),
+            debug_dir=data.get("debug_dir"),
         )
 
     def to_dict(self) -> dict[str, Any]:

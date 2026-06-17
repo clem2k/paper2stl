@@ -34,16 +34,29 @@ def _hough_segments(binary: np.ndarray, cfg: PreprocessConfig) -> list[Segment]:
     return [Segment(*map(float, ln[0])) for ln in lines]
 
 
-def _project_endpoints(cluster: list[Segment]) -> Segment:
-    """Total-least-squares refit of a cluster into one straight segment."""
+def _project_endpoints(cluster: list[Segment], pct: float = 100.0) -> Segment:
+    """Refit a cluster into one segment, with optional partial straightening.
+
+    pct=100 → full TLS refit (perfectly straight, default behaviour).
+    pct=0   → raw Hough endpoints unchanged (preserves curves / wobble).
+    Intermediate values blend linearly between the two.
+    """
     pts = np.vstack([[s.x1, s.y1] for s in cluster] + [[s.x2, s.y2] for s in cluster])
     centroid = pts.mean(axis=0)
     # Principal direction via SVD (robust TLS line fit).
     _, _, vt = np.linalg.svd(pts - centroid)
     direction = vt[0]
     t = (pts - centroid) @ direction
-    p_min = centroid + direction * t.min()
-    p_max = centroid + direction * t.max()
+    i_min, i_max = int(t.argmin()), int(t.argmax())
+    tls_min = centroid + direction * t[i_min]
+    tls_max = centroid + direction * t[i_max]
+    if pct >= 100.0:
+        return Segment(tls_min[0], tls_min[1], tls_max[0], tls_max[1])
+    alpha = max(0.0, min(1.0, pct / 100.0))
+    raw_min = pts[i_min]
+    raw_max = pts[i_max]
+    p_min = (1 - alpha) * raw_min + alpha * tls_min
+    p_max = (1 - alpha) * raw_max + alpha * tls_max
     return Segment(p_min[0], p_min[1], p_max[0], p_max[1])
 
 
@@ -73,7 +86,7 @@ def _merge_segments(segs: list[Segment], cfg: PreprocessConfig) -> list[Segment]
             if perp <= cfg.line_merge_dist_px:
                 cluster.append(t)
                 used[j] = True
-        merged.append(_project_endpoints(cluster))
+        merged.append(_project_endpoints(cluster, cfg.line_straighten_pct))
     return merged
 
 

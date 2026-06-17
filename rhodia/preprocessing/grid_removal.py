@@ -20,18 +20,31 @@ from ..config import PreprocessConfig
 
 
 def _grid_color_mask(bgr: np.ndarray, cfg: PreprocessConfig) -> np.ndarray:
-    """Binary mask (uint8 0/255) of chromatic grid pixels."""
+    """Binary mask (uint8 0/255) of chromatic grid pixels.
+
+    cfg.grid_tolerance shifts detection aggressiveness:
+      * 0.0  → default Rhodia blue/violet band
+      * +1.0 → hue range expands ±10 units, saturation floor drops by 5 (remove more)
+      * -1.0 → hue range narrows ±10 units, saturation floor rises by 5 (remove less)
+    """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     h, s, _ = cv2.split(hsv)
     mask = np.zeros(h.shape, dtype=np.uint8)
+    tol = float(cfg.grid_tolerance)
+    hue_expand = int(round(tol * 10))
+    sat_adjust = int(round(tol * 5))
     for lo, hi in cfg.grid_hue_ranges:
-        hue_in = cv2.inRange(h, int(lo), int(hi))
+        lo_adj = max(0, lo - hue_expand)
+        hi_adj = min(179, hi + hue_expand)
+        hue_in = cv2.inRange(h, lo_adj, hi_adj)
         mask = cv2.bitwise_or(mask, hue_in)
-    # Only count as "grid" where the pixel is actually coloured (saturated).
-    sat_mask = cv2.inRange(s, int(cfg.grid_min_saturation), 255)
+    sat_thresh = max(5, cfg.grid_min_saturation - sat_adjust)
+    sat_mask = cv2.inRange(s, sat_thresh, 255)
     mask = cv2.bitwise_and(mask, sat_mask)
-    # Thin grid lines → dilate slightly so inpainting covers anti-aliased edges.
-    mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=1)
+    # Thin grid lines → dilate so inpainting covers anti-aliased edges.
+    # Extra iterations with positive tolerance for thicker/fainter lines.
+    dil_iters = max(1, 1 + int(round(tol)))
+    mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=dil_iters)
     return mask
 
 
