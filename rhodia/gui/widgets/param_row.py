@@ -331,7 +331,7 @@ class OptionalPathRow(_BaseRow):
         self.value_changed.emit(self.get_value())
 
     def _pick(self) -> None:
-        d = QFileDialog.getExistingDirectory(self, "Select folder")
+        d = QFileDialog.getExistingDirectory(self, "Select folder", str(Path.cwd()))
         if d:
             self._edit.setText(d)
 

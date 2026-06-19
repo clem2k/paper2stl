@@ -76,6 +76,7 @@ class InputPanel(QWidget):
     # ── build ─────────────────────────────────────────────────────────────────
 
     def _build(self) -> None:
+        self.setAcceptDrops(True)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -85,11 +86,15 @@ class InputPanel(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        scroll.setAcceptDrops(True)
         inner = QWidget()
+        inner.setAcceptDrops(True)
         self._layout = QVBoxLayout(inner)
         self._layout.setContentsMargins(12, 12, 12, 12)
         self._layout.setSpacing(16)
         scroll.setWidget(inner)
+        # viewport must also accept drops so Windows lets events reach child widgets
+        scroll.viewport().setAcceptDrops(True)
         outer.addWidget(scroll)
 
         # ── views grid ────────────────────────────────────────────────────────
@@ -101,6 +106,7 @@ class InputPanel(QWidget):
         self._layout.addWidget(sec_lbl)
 
         grid_widget = QWidget()
+        grid_widget.setAcceptDrops(True)
         grid = QGridLayout(grid_widget)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setSpacing(8)

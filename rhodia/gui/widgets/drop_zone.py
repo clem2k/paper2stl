@@ -167,7 +167,7 @@ class ViewDropZone(QFrame):
     def _browse(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, f"Select image — {self.view}",
-            str(Path.home()),
+            str(Path.cwd()),
             "Images (*.jpg *.jpeg *.png *.bmp *.tiff *.tif *.webp)",
         )
         if path:

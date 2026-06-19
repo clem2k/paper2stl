@@ -9,38 +9,21 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
 
-class _GuiLogHandler(logging.Handler):
-    """Logging handler that emits records to a Qt signal."""
-
-    def __init__(self, signal: Signal):
-        super().__init__()
-        self._signal = signal
-        fmt = logging.Formatter("%(levelname)s %(name)s: %(message)s")
-        self.setFormatter(fmt)
-
-    def emit(self, record: logging.LogRecord) -> None:
-        try:
-            self._signal.emit(self.format(record))
-        except Exception:
-            pass
-
-
 class PipelineWorker(QThread):
     """Run the Rhodia pipeline in a background thread.
 
     Signals
     -------
-    log_line : str
-        A formatted log message; connect to the log widget's append slot.
     progress : int
         Overall progress percentage (0–100).
     finished_ok : str
         Emitted with the output STL path when the pipeline succeeds.
     finished_err : str
         Emitted with the error message when the pipeline fails.
+
+    Log output is captured by the global _AppLogHandler installed in MainWindow.
     """
 
-    log_line     = Signal(str)
     progress     = Signal(int)
     finished_ok  = Signal(str)
     finished_err = Signal(str)
@@ -50,25 +33,11 @@ class PipelineWorker(QThread):
         self._cfg        = cfg
         self._input_dir  = Path(input_dir)
         self._output_stl = Path(output_stl)
-        self._handler: _GuiLogHandler | None = None
-
-    # ── internal helpers ────────────────────────────────────────────────────
-
-    def _install_log(self) -> None:
-        self._handler = _GuiLogHandler(self.log_line)
-        self._handler.setLevel(logging.DEBUG)
-        logging.getLogger("rhodia").addHandler(self._handler)
-        logging.getLogger("rhodia").setLevel(logging.INFO)
-
-    def _remove_log(self) -> None:
-        if self._handler:
-            logging.getLogger("rhodia").removeHandler(self._handler)
-            self._handler = None
 
     # ── QThread entry point ─────────────────────────────────────────────────
 
     def run(self) -> None:
-        self._install_log()
+        logging.getLogger("rhodia").setLevel(logging.INFO)
         try:
             from rhodia.pipeline import Pipeline
 
@@ -100,8 +69,7 @@ class PipelineWorker(QThread):
 
         except Exception as exc:
             tb = traceback.format_exc()
-            self.log_line.emit(f"ERROR: {exc}\n{tb}")
+            logging.getLogger("rhodia").error("Pipeline failed: %s\n%s", exc, tb)
             self.finished_err.emit(str(exc))
         finally:
-            self._remove_log()
             self.progress.emit(0)

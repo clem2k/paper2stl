@@ -2,18 +2,38 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSettings, Slot
+from PySide6.QtCore import QObject, Qt, QSettings, Signal, Slot
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFileDialog, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
     QProgressBar, QPushButton, QSizePolicy, QSplitter, QStatusBar, QToolBar,
     QVBoxLayout, QWidget,
 )
+
+
+class _LogBridge(QObject):
+    line = Signal(str)
+
+
+class _AppLogHandler(logging.Handler):
+    """Routes all Python logging records to the GUI log widget (thread-safe)."""
+
+    def __init__(self, bridge: _LogBridge):
+        super().__init__()
+        self._bridge = bridge
+        self.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            self._bridge.line.emit(self.format(record))
+        except Exception:
+            pass
 
 from rhodia.gui.panels.input_panel import InputPanel
 from rhodia.gui.panels.params_panel import ParamsPanel
@@ -115,12 +135,15 @@ class MainWindow(QMainWindow):
         b_layout.setSpacing(4)
 
         prog_row = QHBoxLayout()
+        prog_row.setContentsMargins(0, 4, 0, 4)
         self._prog_lbl = QLabel("")
+        self._prog_lbl.setFixedWidth(36)
         self._prog_lbl.setStyleSheet("font-size: 11px; color: #6b7280;")
         self._progress = QProgressBar()
         self._progress.setRange(0, 100)
         self._progress.setValue(0)
-        self._progress.setFixedHeight(6)
+        self._progress.setFixedHeight(16)
+        self._progress.setTextVisible(False)
         prog_row.addWidget(self._progress, stretch=1)
         prog_row.addWidget(self._prog_lbl)
         b_layout.addLayout(prog_row)
@@ -128,6 +151,16 @@ class MainWindow(QMainWindow):
         self._log = LogView()
         b_layout.addWidget(self._log)
         root.addWidget(bottom)
+
+        # ── global log capture (all levels, from app start) ───────────────────
+        self._log_bridge = _LogBridge()
+        self._log_bridge.line.connect(self._log.append)
+        self._log_handler = _AppLogHandler(self._log_bridge)
+        self._log_handler.setLevel(logging.DEBUG)
+        root_logger = logging.getLogger()
+        root_logger.addHandler(self._log_handler)
+        if root_logger.level == logging.NOTSET:
+            root_logger.setLevel(logging.INFO)
 
         # ── status bar ────────────────────────────────────────────────────────
         sb = QStatusBar(self)
@@ -174,7 +207,6 @@ class MainWindow(QMainWindow):
         cfg = self._params_panel.build_config()
 
         self._worker = PipelineWorker(cfg, self._tmp_dir, output_stl)
-        self._worker.log_line.connect(self._log.append)
         self._worker.progress.connect(self._on_progress)
         self._worker.finished_ok.connect(self._on_success)
         self._worker.finished_err.connect(self._on_error)
@@ -249,6 +281,7 @@ class MainWindow(QMainWindow):
         self._settings.setValue("geometry", self.saveGeometry())
         if self._tmp_dir:
             shutil.rmtree(self._tmp_dir, ignore_errors=True)
+        logging.getLogger().removeHandler(self._log_handler)
         event.accept()
 
 
