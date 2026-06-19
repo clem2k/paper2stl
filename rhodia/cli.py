@@ -51,6 +51,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--size-mm", type=float, help="rescale longest dim to N mm")
     p.add_argument(
+        "--ocr-backend", choices=["auto", "easyocr", "tesseract", "none"],
+        default=None,
+        help=(
+            "view-label OCR backend (default auto). Use 'none' to skip OCR "
+            "entirely and classify views by file name only — much faster, and "
+            "all that is needed when scans are named front/top/back/etc."
+        ),
+    )
+    p.add_argument(
         "--grid-tolerance", type=float, metavar="N", default=None,
         help=(
             "grid removal tolerance (default 0.0); negative = stricter, "
@@ -75,6 +84,28 @@ def build_parser() -> argparse.ArgumentParser:
             "0 = raw Hough endpoints kept (preserves curves/wobble); "
             "intermediate values blend the two."
         ),
+    )
+    p.add_argument(
+        "--no-regularize", action="store_true",
+        help="disable aggressive geometric regularisation of silhouettes "
+        "(keep the raw hand-drawn outline instead of snapping to clean "
+        "rectangles / straight edges)",
+    )
+    p.add_argument(
+        "--rect-score", type=float, metavar="FRAC", default=None,
+        help="rectangleness threshold 0–1 (default 0.90): a silhouette filling "
+        "at least this fraction of its bounding rectangle is collapsed to a "
+        "perfect rectangle. Lower = more shapes snap to rectangles.",
+    )
+    p.add_argument(
+        "--angle-snap-deg", type=float, metavar="DEG", default=None,
+        help="snap silhouette edges within this many degrees of a dominant "
+        "axis to exactly straight (default 10). Higher = more aggressive.",
+    )
+    p.add_argument(
+        "--presmooth-sigma", type=float, metavar="SIGMA", default=None,
+        help="Gaussian pre-smoothing (voxels) of the grid before marching "
+        "cubes (default 0.6). 0 disables it; higher smooths more.",
     )
     p.add_argument(
         "--debug-dir", type=Path, metavar="DIR", default=None,
@@ -104,12 +135,22 @@ def _apply_overrides(cfg: PipelineConfig, args) -> PipelineConfig:
         cfg.reconstruction.neural_weights = str(args.neural_weights)
     if args.size_mm:
         cfg.export.target_size_mm = args.size_mm
+    if args.ocr_backend is not None:
+        cfg.metadata.ocr_backend = args.ocr_backend
     if args.grid_tolerance is not None:
         cfg.preprocess.grid_tolerance = args.grid_tolerance
     if args.pencil_strength is not None:
         cfg.preprocess.pencil_min_strength = args.pencil_strength
     if args.straighten_pct is not None:
         cfg.preprocess.line_straighten_pct = args.straighten_pct
+    if args.no_regularize:
+        cfg.preprocess.regularize_shapes = False
+    if args.rect_score is not None:
+        cfg.preprocess.regularize_rect_score = args.rect_score
+    if args.angle_snap_deg is not None:
+        cfg.preprocess.regularize_angle_snap_deg = args.angle_snap_deg
+    if args.presmooth_sigma is not None:
+        cfg.export.presmooth_sigma = args.presmooth_sigma
     if args.debug_dir is not None:
         cfg.debug_dir = str(args.debug_dir)
     return cfg

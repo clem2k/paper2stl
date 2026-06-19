@@ -113,13 +113,16 @@ def rasterize_silhouette(
     """
     canvas = np.zeros(shape, dtype=np.uint8)
     for s in segments:
+        # LINE_8 (no anti-aliasing) keeps the silhouette strictly binary, so the
+        # flood-fill and the downstream regularisation see crisp edges rather
+        # than feathered grey pixels.
         cv2.line(
             canvas,
             (int(round(s.x1)), int(round(s.y1))),
             (int(round(s.x2)), int(round(s.y2))),
             255,
             thickness,
-            cv2.LINE_AA,
+            cv2.LINE_8,
         )
     canvas = cv2.morphologyEx(canvas, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 

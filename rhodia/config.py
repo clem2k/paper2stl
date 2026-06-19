@@ -41,6 +41,28 @@ class PreprocessConfig:
     # line_straighten_pct: 100 = full TLS refit (perfectly straight, default);
     # 0 = keep raw Hough endpoints (preserves curves/wobble).
     line_straighten_pct: float = 100.0
+    # --- Aggressive geometric regularisation of the per-view silhouette -------
+    # Clean the *filled silhouette* as a geometric primitive so that wobbly
+    # hand-drawn outlines stop turning into waves on what should be flat faces:
+    #   * a near-rectangular outline is collapsed to a perfect rectangle (a shape
+    #     that looks ~95% like a square on every sheet then yields a perfect box);
+    #   * otherwise each polygon edge is snapped to the dominant orientation (and
+    #     its 45/90/135° relatives) and corners are recomputed as exact edge
+    #     intersections — genuine slopes and L/T topology (the dashed recessed
+    #     volume's reflex corner) are preserved.
+    regularize_shapes: bool = True
+    # Edges within this many degrees of a dominant direction snap exactly to it;
+    # steeper genuine slopes are left alone. Higher = more aggressive.
+    regularize_angle_snap_deg: float = 10.0
+    # A contour filling at least this fraction of its min-area bounding rectangle
+    # is replaced by that exact rectangle (1.0 = already a perfect rectangle).
+    # This is the "looks N% like a rectangle → make it perfect" knob.
+    regularize_rect_score: float = 0.90
+    # approxPolyDP simplification epsilon as a fraction of contour perimeter.
+    regularize_poly_epsilon_frac: float = 0.01
+    # Remove a small residual sheet tilt (≤ this many degrees) so the part is
+    # axis-aligned before regularisation — an intentional larger rotation is kept.
+    regularize_derotate_max_deg: float = 12.0
 
 
 @dataclass
@@ -57,7 +79,7 @@ class MetadataConfig:
 
 @dataclass
 class ReconstructionConfig:
-    voxel_resolution: int = 128      # cells along the longest axis
+    voxel_resolution: int = 256      # cells along the longest axis
     fill_missing: bool = True        # mirror opposite views, extrude singles
     default_extrude_frac: float = 0.5  # depth for a lone view (frac of view size)
     # Photogrammetry-style cross-view registration: drawings placed differently
@@ -81,6 +103,11 @@ class ExportConfig:
     stl_binary: bool = True
     target_size_mm: float | None = None   # rescale longest dim to this many mm
     ensure_watertight: bool = True
+    # Gentle Gaussian pre-smoothing (in voxels) of the occupancy grid before
+    # marching cubes, to take the residual voxel stair-stepping off flat faces
+    # without rounding sharp corners. 0 disables it; ~0.6 is barely perceptible
+    # at 256³ yet visibly smooths large planar surfaces.
+    presmooth_sigma: float = 0.6
 
 
 @dataclass

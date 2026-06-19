@@ -60,6 +60,18 @@ def _content_bbox(mask: np.ndarray) -> tuple[int, int, int, int] | None:
     return y, y + h - 1, x, x + w - 1
 
 
+def _resize_mask(crop: np.ndarray, vw: int, vh: int) -> np.ndarray:
+    """Resize a binary mask with area-averaging + 0.5 threshold.
+
+    Area interpolation antialiases the edge so a downscaled diagonal becomes a
+    smooth ramp rather than the hard stair-steps ``INTER_NEAREST`` would leave;
+    thresholding at the half-coverage level keeps it a clean boolean plane.
+    """
+    interp = cv2.INTER_AREA if (vw < crop.shape[1] or vh < crop.shape[0]) else cv2.INTER_LINEAR
+    resized = cv2.resize(crop.astype(np.uint8), (vw, vh), interpolation=interp)
+    return resized >= 128
+
+
 def _uniform_scale(pw: int, ph: int, target_u: int, target_v: int) -> float:
     """Single isotropic factor best matching (pw→target_u, ph→target_v).
 
@@ -128,7 +140,7 @@ def _place_plane(
     scale = _uniform_scale(pw, ph, n_u, n_v)
     vw = int(np.clip(round(scale * pw), 1, n_u))
     vh = int(np.clip(round(scale * ph), 1, n_v))
-    small = cv2.resize(crop, (vw, vh), interpolation=cv2.INTER_NEAREST) > 0
+    small = _resize_mask(crop, vw, vh)
 
     if u_flip:
         small = small[:, ::-1]

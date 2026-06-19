@@ -39,6 +39,15 @@ def occupancy_to_mesh(
 
     padded = np.pad(occupancy.astype(np.float32), 1, mode="constant")
 
+    # Gentle pre-smoothing of the scalar field takes the voxel stair-stepping off
+    # flat faces before the surface is extracted, without the wave artefacts that
+    # post-hoc mesh smoothing can introduce. Sharp corners survive at small sigma.
+    sigma = getattr(cfg, "presmooth_sigma", 0.0)
+    if sigma and sigma > 0:
+        from scipy.ndimage import gaussian_filter
+
+        padded = gaussian_filter(padded, sigma=float(sigma))
+
     verts, faces, normals, _ = measure.marching_cubes(padded, level=level)
     mesh = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals=normals)
 

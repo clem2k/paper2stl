@@ -44,7 +44,12 @@ def _legacy_plane(view: ViewSilhouette, dims: tuple[int, int, int]) -> np.ndarra
     u_axis, u_flip, v_axis, v_flip, _ = view.axes
     n_u, n_v = dims[u_axis], dims[v_axis]
     cropped = _crop_to_content(view.mask)
-    mask = cv2.resize(cropped, (n_u, n_v), interpolation=cv2.INTER_NEAREST) > 0
+    interp = (
+        cv2.INTER_AREA
+        if (n_u < cropped.shape[1] or n_v < cropped.shape[0])
+        else cv2.INTER_LINEAR
+    )
+    mask = cv2.resize(cropped.astype(np.uint8), (n_u, n_v), interpolation=interp) >= 128
     if u_flip:
         mask = mask[:, ::-1]
     if v_flip:

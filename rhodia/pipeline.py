@@ -22,7 +22,12 @@ from .detail_pages import DetailPage, apply_detail_pages
 from .device import describe, get_device
 from .metadata import OCREngine, classify_view, detect_red_frames
 from .metadata.ocr import match_view
-from .preprocessing import extract_pencil, remove_grid, vectorize_lines
+from .preprocessing import (
+    extract_pencil,
+    regularize_silhouette,
+    remove_grid,
+    vectorize_lines,
+)
 from .preprocessing.vectorize import rasterize_silhouette
 from .reconstruction import ViewSilhouette, reconstruct
 from .export import export_stl, occupancy_to_mesh
@@ -64,10 +69,13 @@ class Pipeline:
         # so it does not pollute the part silhouette.
         self._blank_cartouche(binary)
         segments = vectorize_lines(binary, self.cfg.preprocess)
-        silhouette = rasterize_silhouette(segments, binary.shape)
+        raw_silhouette = rasterize_silhouette(segments, binary.shape)
+        silhouette = regularize_silhouette(raw_silhouette, self.cfg.preprocess)
 
         if self.cfg.debug_dir is not None:
-            self._save_debug_images(path.stem, gray, binary, segments, silhouette)
+            self._save_debug_images(
+                path.stem, gray, binary, segments, raw_silhouette, silhouette
+            )
 
         # B. Metadata
         view, conf = classify_view(bgr, self.ocr, self.cfg.metadata)
@@ -91,6 +99,7 @@ class Pipeline:
         gray: np.ndarray,
         binary: np.ndarray,
         segments: list,
+        raw_silhouette: np.ndarray,
         silhouette: np.ndarray,
     ) -> None:
         """Write per-page intermediate images as JPEGs into cfg.debug_dir."""
@@ -108,7 +117,8 @@ class Pipeline:
                 cv2.LINE_AA,
             )
         save_debug(overlay, debug_dir / f"{stem}_3_segments.jpg")
-        save_debug(silhouette, debug_dir / f"{stem}_4_silhouette.jpg")
+        save_debug(raw_silhouette, debug_dir / f"{stem}_4_silhouette_raw.jpg")
+        save_debug(silhouette, debug_dir / f"{stem}_5_silhouette_regularized.jpg")
         logger.debug("Debug images saved for %s → %s", stem, debug_dir)
 
     def _blank_cartouche(self, binary: np.ndarray) -> None:
