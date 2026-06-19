@@ -1,7 +1,12 @@
 # Paper2STL — Sketch-to-STL pipeline
 
+![Paper2STL](captures/out.jpg)
+
 Reconstruct a **watertight `.stl`** solid from **scanned orthographic pencil
 sketches** drawn on grid paper.
+
+> 📖 **New here?** Read the [**USER_MANUAL.md**](USER_MANUAL.md) — how to draw,
+> how many sheets to scan, and what every parameter does to the generated STL.
 
 The pipeline reads a folder of scans (one orthographic view per page — *top,
 front, bottom, rear, left, right*), removes the printed grid, vectorises the
