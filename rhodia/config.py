@@ -49,6 +49,16 @@ class ReconstructionConfig:
     voxel_resolution: int = 128      # cells along the longest axis
     fill_missing: bool = True        # mirror opposite views, extrude singles
     default_extrude_frac: float = 0.5  # depth for a lone view (frac of view size)
+    # Photogrammetry-style cross-view registration: drawings placed differently
+    # on each sheet are realigned by correlating their 1-D projection profiles
+    # along every shared world axis, with a uniform (proportion-preserving) scale
+    # consensus instead of a naive per-axis stretch.
+    align_views: bool = True
+    # How far a view may be nudged to register, as a fraction of the axis length.
+    # Higher = tolerates larger misalignment between sheets (search further);
+    # lower = stricter, trusts the drawn position more. 0 disables the shift
+    # search (uniform-scale consensus only).
+    align_tolerance: float = 0.15
     use_neural_completion: bool = False
     neural_weights: str | None = None
     marching_cubes_level: float = 0.5
