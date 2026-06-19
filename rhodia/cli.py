@@ -35,6 +35,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="disable mirroring of missing opposite views",
     )
     p.add_argument(
+        "--no-align", action="store_true",
+        help="disable photogrammetry-style cross-view registration "
+        "(fall back to crop-and-stretch placement)",
+    )
+    p.add_argument(
+        "--align-tolerance", type=float, metavar="FRAC", default=None,
+        help="how far a view may be nudged to register, as a fraction of the "
+        "axis length (default 0.15). Higher tolerates larger per-sheet "
+        "misalignment; 0 disables the shift search.",
+    )
+    p.add_argument(
         "--neural-weights", type=Path,
         help="enable neural completion with these weights",
     )
@@ -75,6 +86,10 @@ def _apply_overrides(cfg: PipelineConfig, args) -> PipelineConfig:
         cfg.reconstruction.voxel_resolution = args.resolution
     if args.no_fill_missing:
         cfg.reconstruction.fill_missing = False
+    if args.no_align:
+        cfg.reconstruction.align_views = False
+    if args.align_tolerance is not None:
+        cfg.reconstruction.align_tolerance = args.align_tolerance
     if args.neural_weights:
         cfg.reconstruction.use_neural_completion = True
         cfg.reconstruction.neural_weights = str(args.neural_weights)

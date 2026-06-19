@@ -52,7 +52,7 @@ def reconstruct(
     bbox = register_views(completed, resolution=cfg.voxel_resolution)
     logger.info("Registered %s", bbox)
 
-    occupancy = carve_visual_hull(completed, bbox)
+    occupancy = carve_visual_hull(completed, bbox, cfg)
 
     # Bound any axis still observed by nobody (pure extrusion) to a finite slab.
     for axis in unconstrained_axes(completed):

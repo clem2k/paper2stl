@@ -17,7 +17,9 @@ import logging
 import cv2
 import numpy as np
 
+from ..config import ReconstructionConfig
 from .align import BoundingBox
+from .registration import build_view_planes
 from .views import ViewSilhouette
 
 logger = logging.getLogger(__name__)
@@ -37,24 +39,28 @@ def _crop_to_content(mask: np.ndarray) -> np.ndarray:
     return mask[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
 
 
-def _view_volume(view: ViewSilhouette, dims: tuple[int, int, int]) -> np.ndarray:
-    """Boolean occupancy (Nx,Ny,Nz) for one extruded silhouette."""
-    u_axis, u_flip, v_axis, v_flip, w_axis = view.axes
-    n_u, n_v, n_w = dims[u_axis], dims[v_axis], dims[w_axis]
-
-    # Register by cropping to content, then resize to the grid resolution of
-    # the two in-plane axes. cv2.resize takes (width=cols=u, height=rows=v).
+def _legacy_plane(view: ViewSilhouette, dims: tuple[int, int, int]) -> np.ndarray:
+    """Crop-to-content then stretch-to-fill placement (no cross-view registration)."""
+    u_axis, u_flip, v_axis, v_flip, _ = view.axes
+    n_u, n_v = dims[u_axis], dims[v_axis]
     cropped = _crop_to_content(view.mask)
-    mask = cv2.resize(cropped, (n_u, n_v), interpolation=cv2.INTER_NEAREST)
-    mask = (mask > 0)
-
+    mask = cv2.resize(cropped, (n_u, n_v), interpolation=cv2.INTER_NEAREST) > 0
     if u_flip:
         mask = mask[:, ::-1]
     if v_flip:
         mask = mask[::-1, :]
+    return mask
 
-    # mask has local axes (v, u). Extrude along w → (v, u, w).
-    vol_local = np.broadcast_to(mask[:, :, None], (n_v, n_u, n_w))
+
+def _extrude_plane(
+    plane: np.ndarray, view: ViewSilhouette, dims: tuple[int, int, int]
+) -> np.ndarray:
+    """Extrude a placed ``(n_v, n_u)`` plane along the view axis → world (X,Y,Z)."""
+    u_axis, _, v_axis, _, w_axis = view.axes
+    n_w = dims[w_axis]
+
+    # plane has local axes (v, u). Extrude along w → (v, u, w).
+    vol_local = np.broadcast_to(plane[:, :, None], (*plane.shape, n_w))
 
     # Reorder local axes (v_axis, u_axis, w_axis) → world (X, Y, Z).
     local_axes = [v_axis, u_axis, w_axis]
@@ -63,9 +69,16 @@ def _view_volume(view: ViewSilhouette, dims: tuple[int, int, int]) -> np.ndarray
 
 
 def carve_visual_hull(
-    views: list[ViewSilhouette], bbox: BoundingBox
+    views: list[ViewSilhouette],
+    bbox: BoundingBox,
+    cfg: ReconstructionConfig | None = None,
 ) -> np.ndarray:
     """Intersect all extruded silhouettes into an occupancy grid.
+
+    When ``cfg.align_views`` is set (default), silhouettes are registered across
+    views by :func:`registration.build_view_planes` (uniform-scale consensus +
+    profile cross-correlation) so drawings placed differently on each sheet are
+    realigned.  Otherwise the legacy crop-and-stretch placement is used.
 
     Returns
     -------
@@ -74,10 +87,16 @@ def carve_visual_hull(
     """
     if not views:
         raise ValueError("Cannot reconstruct: no views provided")
+    cfg = cfg or ReconstructionConfig()
+
+    if cfg.align_views:
+        planes = build_view_planes(views, bbox.dims, cfg)
+    else:
+        planes = {id(v): _legacy_plane(v, bbox.dims) for v in views}
 
     occupancy = np.ones(bbox.dims, dtype=bool)
     for view in views:
-        vol = _view_volume(view, bbox.dims)
+        vol = _extrude_plane(planes[id(view)], view, bbox.dims)
         occupancy &= vol
         logger.debug(
             "Carved view '%s' → %d solid voxels remaining",
