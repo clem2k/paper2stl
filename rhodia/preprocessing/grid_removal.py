@@ -28,7 +28,7 @@ def _grid_color_mask(bgr: np.ndarray, cfg: PreprocessConfig) -> np.ndarray:
       * -1.0 → hue range narrows ±10 units, saturation floor rises by 5 (remove less)
     """
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    h, s, _ = cv2.split(hsv)
+    h, s, v = cv2.split(hsv)
     mask = np.zeros(h.shape, dtype=np.uint8)
     tol = float(cfg.grid_tolerance)
     hue_expand = int(round(tol * 10))
@@ -41,6 +41,10 @@ def _grid_color_mask(bgr: np.ndarray, cfg: PreprocessConfig) -> np.ndarray:
     sat_thresh = max(5, cfg.grid_min_saturation - sat_adjust)
     sat_mask = cv2.inRange(s, sat_thresh, 255)
     mask = cv2.bitwise_and(mask, sat_mask)
+    # The grid is light, pencil is dark: only remove pixels brighter than the
+    # value ceiling so dark strokes drawn over the grid are never inpainted away.
+    val_mask = cv2.inRange(v, int(cfg.grid_max_value), 255)
+    mask = cv2.bitwise_and(mask, val_mask)
     # Thin grid lines → dilate so inpainting covers anti-aliased edges.
     # Extra iterations with positive tolerance for thicker/fainter lines.
     dil_iters = max(1, 1 + int(round(tol)))

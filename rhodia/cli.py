@@ -55,7 +55,16 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "grid removal tolerance (default 0.0); negative = stricter, "
             "positive = more aggressive. Each unit expands the hue range by "
-            "±10 and lowers the saturation floor by 5."
+            "±10, lowers the saturation floor by 5 and raises the pencil "
+            "contrast floor by 8."
+        ),
+    )
+    p.add_argument(
+        "--pencil-strength", type=int, metavar="N", default=None,
+        help=(
+            "ink contrast floor: how much darker than the paper a stroke must "
+            "be to count as pencil (default 55). Higher rejects more faint grid; "
+            "lower keeps fainter strokes. 0 = legacy adaptive-threshold method."
         ),
     )
     p.add_argument(
@@ -97,6 +106,8 @@ def _apply_overrides(cfg: PipelineConfig, args) -> PipelineConfig:
         cfg.export.target_size_mm = args.size_mm
     if args.grid_tolerance is not None:
         cfg.preprocess.grid_tolerance = args.grid_tolerance
+    if args.pencil_strength is not None:
+        cfg.preprocess.pencil_min_strength = args.pencil_strength
     if args.straighten_pct is not None:
         cfg.preprocess.line_straighten_pct = args.straighten_pct
     if args.debug_dir is not None:

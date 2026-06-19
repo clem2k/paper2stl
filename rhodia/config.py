@@ -18,10 +18,21 @@ class PreprocessConfig:
     )
     grid_min_saturation: int = 25
     # grid_tolerance: 0.0 = default; negative = stricter removal; positive = more
-    # aggressive (expands hue range ±10 per unit, lowers sat threshold by 5 per unit).
+    # aggressive (expands hue range ±10 per unit, lowers sat threshold by 5 per
+    # unit, and raises the pencil contrast floor by 8 per unit).
     grid_tolerance: float = 0.0
-    pencil_block_size: int = 35      # adaptive threshold window (odd)
-    pencil_C: int = 10               # adaptive threshold bias
+    # Only pixels brighter than this are treated as grid: the printed quadrille is
+    # light, pencil is dark, so this protects pencil strokes from being inpainted.
+    grid_max_value: int = 180
+    # Ink extraction. The robust default isolates pencil by contrast *strength*
+    # (how much darker than the local paper background it is), which rejects the
+    # faint printed grid while keeping dark strokes — including dashed (hidden)
+    # edges. Set pencil_min_strength = 0 to fall back to the adaptive-threshold
+    # method (kept for high-contrast scans with no residual grid).
+    pencil_min_strength: int = 55   # contrast floor (0 → legacy adaptive method)
+    pencil_bg_kernel: int = 25      # paper-background estimation kernel (px)
+    pencil_block_size: int = 35      # adaptive threshold window (odd, legacy method)
+    pencil_C: int = 10               # adaptive threshold bias (legacy method)
     hough_threshold: int = 50
     hough_min_line_length: int = 40
     hough_max_line_gap: int = 8
