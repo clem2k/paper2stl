@@ -18,7 +18,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Reconstruct an STL from orthographic pencil sketches on "
         "Rhodia grid paper.",
     )
-    p.add_argument("input", type=Path, help="folder of scan images")
+    p.add_argument("input", type=Path, nargs="?", default=None,
+                   help="folder of scan images (not required when --gui is used)")
     p.add_argument(
         "-o", "--output", type=Path, default=Path("output.stl"),
         help="output STL path (default: output.stl)",
@@ -116,6 +117,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("-v", "--verbose", action="count", default=0)
     p.add_argument("--info", action="store_true", help="print device info and exit")
+    p.add_argument("--gui",  action="store_true",
+                   help="launch the graphical interface (same as python -m rhodia.gui)")
     return p
 
 
@@ -158,12 +161,20 @@ def _apply_overrides(cfg: PipelineConfig, args) -> PipelineConfig:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.gui:
+        from rhodia.gui import run_gui
+        return run_gui()
+
     level = logging.WARNING - 10 * min(args.verbose, 2)
     logging.basicConfig(level=level, format="%(levelname)s %(name)s: %(message)s")
 
     if args.info:
         print(describe())
         return 0
+
+    if not args.input:
+        build_parser().error("the following arguments are required: input")
 
     cfg = PipelineConfig.from_yaml(args.config) if args.config else PipelineConfig()
     cfg = _apply_overrides(cfg, args)
