@@ -1,0 +1,28 @@
+# ---------------------------------------------------------------------------
+# Paper2STL sketch-to-STL pipeline — Python dependencies
+# ---------------------------------------------------------------------------
+# Core (always required)
+numpy>=1.24
+scipy>=1.10
+opencv-python>=4.8
+scikit-image>=0.21          # marching cubes, morphology
+trimesh>=4.0                # mesh repair + STL export
+PyYAML>=6.0                 # config files
+shapely>=2.0               # 2D polygon / silhouette ops
+
+# Optional — metadata extraction (OCR). Install at least one backend.
+#   EasyOCR pulls torch automatically; Tesseract needs the system binary.
+easyocr>=1.7 ; python_version < "3.13"
+pytesseract>=0.3.10
+
+# Optional — deep learning (line straightening, neural 3D completion).
+# Torch is resolved per-platform; see README for CUDA / MPS wheels.
+torch>=2.1
+torchvision>=0.16
+
+# Optional — richer mesh / pointcloud tooling
+open3d>=0.18 ; python_version < "3.12"
+
+# GUI (optional — only needed when using python -m paper2stl.gui or paper2stl --gui)
+PySide6>=6.6
+
