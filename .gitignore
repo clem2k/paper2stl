@@ -10,7 +10,6 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -223,3 +222,5 @@ examples/out.stl
 *.stl
 debug/
 /.build-venv
+# macOS
+.DS_Store

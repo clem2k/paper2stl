@@ -1,0 +1,12 @@
+#!/bin/bash
+HERE="$(cd "$(dirname "$0")" && pwd)"
+RES="$(cd "$HERE/../Resources" && pwd)"
+VENV="$HOME/Library/Application Support/Paper2STL/venv"
+MARKER="$VENV/.paper2stl_installed"
+
+if [ -x "$VENV/bin/python" ] && [ -f "$MARKER" ]; then
+    exec "$VENV/bin/python" -m paper2stl.gui
+fi
+
+# First launch — run the installer in Terminal so the user sees the progress.
+open -a Terminal "$RES/bootstrap.command"

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paper2stl"
+version = "1.0.0"
+description = "Convert orthographic pencil sketches on grid paper to STL files"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "opencv-python>=4.8",
+    "scikit-image>=0.21",
+    "trimesh>=4.0",
+    "PyYAML>=6.0",
+    "shapely>=2.0",
+    "PySide6>=6.6",
+]
+
+[project.optional-dependencies]
+# Neural completion and line-straightening (large download — ~800 MB)
+neural = [
+    "torch>=2.1",
+    "torchvision>=0.16",
+]
+# OCR: view-label extraction from the cartouche
+ocr = [
+    "easyocr>=1.7",
+    "pytesseract>=0.3.10",
+]
+# Richer mesh tooling (Python < 3.12 only)
+mesh = ["open3d>=0.18"]
+
+# Convenience: everything a Mac user wants out of the box
+mac = ["paper2stl[neural,ocr]"]
+
+# Development / test
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+paper2stl = "paper2stl.cli:main"
+
+[project.gui-scripts]
+paper2stl-gui = "paper2stl.gui:run_gui"
+
+[tool.setuptools.packages.find]
+include = ["paper2stl*"]
