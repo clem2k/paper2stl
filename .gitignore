@@ -224,3 +224,4 @@ debug/
 /.build-venv
 # macOS
 .DS_Store
+/dist
