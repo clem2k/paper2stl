@@ -3,10 +3,12 @@
 # Assemble a lightweight, self-bootstrapping  Paper2STL.app  for macOS.
 #
 # The resulting .app contains only the Python SOURCE (a few MB) — NOT the heavy
-# dependencies. On its FIRST launch it creates a venv in
-#   ~/Library/Application Support/Paper2STL/venv
+# dependencies. On its FIRST launch it creates a venv INSIDE the bundle
+#   Paper2STL.app/Contents/Resources/venv
 # and pip-installs the core requirements from PyPI (~400 MB, one time).
 # Every launch after that starts the GUI instantly and silently.
+# Because everything lives inside the .app, it is fully portable: delete the
+# bundle and nothing is left behind (no ~/Library, no preferences).
 #
 # Usage (run on any Mac, no special tools required):
 #   ./scripts/build_installer_app.sh
@@ -44,6 +46,7 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
   <key>CFBundleIdentifier</key>        <string>com.paper2stl.app</string>
   <key>CFBundleName</key>              <string>Paper2STL</string>
   <key>CFBundleDisplayName</key>       <string>Paper2STL</string>
+  <key>CFBundleIconFile</key>          <string>Paper2STL</string>
   <key>CFBundleVersion</key>           <string>1.0.0</string>
   <key>CFBundleShortVersionString</key><string>1.0.0</string>
   <key>CFBundlePackageType</key>       <string>APPL</string>
@@ -69,6 +72,34 @@ cp "$REPO/README.md"      "$RES/src/" 2>/dev/null || warn "README.md missing —
 cp "$REPO/LICENCE"        "$RES/src/" 2>/dev/null || true
 ok "Source bundled ($(du -sh "$RES/src" | cut -f1))"
 
+# ── 2b. App icon (Contents/Resources/Paper2STL.icns) ──────────────────────────
+# Built from res/ico.png with native macOS tools (sips + iconutil). Falls back
+# gracefully if the source or tools are missing — the app still works.
+ICON_SRC="$REPO/res/ico.png"
+if [ -f "$ICON_SRC" ] && command -v sips &>/dev/null && command -v iconutil &>/dev/null; then
+    info "Generating app icon…"
+    ICONSET="$(mktemp -d)/Paper2STL.iconset"
+    mkdir -p "$ICONSET"
+    for s in 16 32 64 128 256 512 1024; do
+        sips -z "$s" "$s" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}.png" &>/dev/null || true
+    done
+    # Retina (@2x) variants expected by iconutil.
+    cp "$ICONSET/icon_32x32.png"     "$ICONSET/icon_16x16@2x.png"   2>/dev/null || true
+    cp "$ICONSET/icon_64x64.png"     "$ICONSET/icon_32x32@2x.png"   2>/dev/null || true
+    cp "$ICONSET/icon_256x256.png"   "$ICONSET/icon_128x128@2x.png" 2>/dev/null || true
+    cp "$ICONSET/icon_512x512.png"   "$ICONSET/icon_256x256@2x.png" 2>/dev/null || true
+    cp "$ICONSET/icon_1024x1024.png" "$ICONSET/icon_512x512@2x.png" 2>/dev/null || true
+    rm -f "$ICONSET/icon_64x64.png"                # not a standard iconset slot
+    if iconutil -c icns "$ICONSET" -o "$RES/Paper2STL.icns" 2>/dev/null; then
+        ok "App icon generated."
+    else
+        warn "iconutil failed — app will use the default icon."
+    fi
+    rm -rf "$(dirname "$ICONSET")"
+else
+    warn "res/ico.png or sips/iconutil missing — app will use the default icon."
+fi
+
 # ── 3. Launcher (Contents/MacOS/Paper2STL) ─────────────────────────────────────
 # Fast path: venv ready → launch GUI directly (silent, instant).
 # First run:  no venv  → open the bootstrap installer in Terminal (visible).
@@ -77,8 +108,9 @@ cat > "$MACOS/Paper2STL" << 'LAUNCHER'
 #!/bin/bash
 HERE="$(cd "$(dirname "$0")" && pwd)"
 RES="$(cd "$HERE/../Resources" && pwd)"
-VENV="$HOME/Library/Application Support/Paper2STL/venv"
+VENV="$RES/venv"
 MARKER="$VENV/.paper2stl_installed"
+export PAPER2STL_PORTABLE_DIR="$RES"
 
 if [ -x "$VENV/bin/python" ] && [ -f "$MARKER" ]; then
     exec "$VENV/bin/python" -m paper2stl.gui
@@ -106,8 +138,8 @@ die()  { printf "\n${RED}✗  Erreur :${NC} %s\n\nAppuyez sur Entrée pour ferme
 RES="$(cd "$(dirname "$0")" && pwd)"
 SRC="$RES/src"
 APP="$(cd "$RES/../.." && pwd)"          # …/Paper2STL.app
-SUPPORT="$HOME/Library/Application Support/Paper2STL"
-VENV="$SUPPORT/venv"
+SUPPORT="$RES"                            # everything lives inside the bundle
+VENV="$RES/venv"
 MARKER="$VENV/.paper2stl_installed"
 
 clear

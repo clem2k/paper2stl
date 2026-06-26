@@ -1,6 +1,6 @@
 # Paper2STL — User Manual
 
-![Paper2STL](captures/out.jpg)
+![Paper2STL](captures/logo.jpg)
 
 > **No CAD… just ideas!** Sketch your part in pencil on grid
 > paper, scan (or photograph) each view, and Paper2STL reconstructs a
@@ -139,8 +139,7 @@ only change them if the result is not satisfactory.
 | **OCR backend** | Reads the view name from the title block. `none` = the fastest, classifies views by **file name**. | Set to `auto` if your files are not named by view. |
 
 > **OCR and GPU acceleration require the optional modules** (EasyOCR/Tesseract,
-> PyTorch). Install them in one click from the app's **Modules** menu — see
-> [INSTALL.md](INSTALL.md#optional-modules). Without them, leave *OCR backend* on
+> PyTorch). Install them in one click from the app's **Modules** menu. Without them, leave *OCR backend* on
 > `none` (views are recognised by file name) and *Compute device* on `cpu`.
 
 ### 4.2 Grid Removal

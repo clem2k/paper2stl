@@ -4,10 +4,12 @@
   This is the exact analogue of scripts/build_installer_app.sh (macOS).
 
   The output contains only the Python SOURCE (a few MB) -- NOT the heavy
-  dependencies. On its FIRST launch it creates a venv in
-      %LOCALAPPDATA%\Paper2STL\venv
+  dependencies. On its FIRST launch it creates a venv INSIDE the app folder
+      dist\Paper2STL\venv
   and pip-installs the core requirements from PyPI (~400 MB, one time).
-  Every launch after that starts the GUI instantly.
+  Every launch after that starts the GUI instantly. Because everything lives
+  next to Paper2STL.cmd, the app is fully portable: delete the folder and
+  nothing is left behind (no %LOCALAPPDATA%, no registry).
 
   Run on Windows (no special tools required):
       powershell -ExecutionPolicy Bypass -File scripts\build_installer_app.ps1
@@ -33,7 +35,20 @@ $Src = Join-Path $Res 'src'
 
 # -- clean ---------------------------------------------------------------------
 Info 'Cleaning previous build...'
-if (Test-Path $App) { Remove-Item -Recurse -Force $App }
+if (Test-Path $App) {
+    try {
+        Remove-Item -Recurse -Force $App -ErrorAction Stop
+    } catch {
+        Write-Host ""
+        Write-Host "ERROR: cannot clean the previous build - a file is locked:" -ForegroundColor Red
+        Write-Host "   $App" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "This usually means a Paper2STL instance is still RUNNING from that" -ForegroundColor Yellow
+        Write-Host "folder (its venv pythonw.exe holds it open). Close the app/GUI, then" -ForegroundColor Yellow
+        Write-Host "run the build again. Aborted on purpose so no stale package is shipped." -ForegroundColor Yellow
+        exit 1
+    }
+}
 New-Item -ItemType Directory -Force -Path $Src | Out-Null
 
 # -- 1. bundle source (exclude caches / tests to stay light) -------------------
@@ -53,8 +68,21 @@ Info 'Writing launcher...'
 $launcher = @'
 @echo off
 setlocal
-set "VENV=%LOCALAPPDATA%\Paper2STL\venv"
+set "APPDIR=%~dp0"
+set "LNK=%APPDIR%Paper2STL.lnk"
+rem First launch: create a portable shortcut (with icon) next to this file.
+if not exist "%LNK%" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$ws=New-Object -ComObject WScript.Shell;" ^
+      "$lnk=$ws.CreateShortcut('%APPDIR%Paper2STL.lnk');" ^
+      "$lnk.TargetPath='%APPDIR%Paper2STL.cmd';" ^
+      "$lnk.WorkingDirectory='%APPDIR%';" ^
+      "$ico='%APPDIR%resources\ico.ico'; if (Test-Path $ico) { $lnk.IconLocation=$ico + ',0' }" ^
+      "$lnk.Save()" >nul 2>&1
+)
+set "VENV=%APPDIR%venv"
 set "MARKER=%VENV%\.paper2stl_installed"
+set "PAPER2STL_PORTABLE_DIR=%APPDIR%"
 if exist "%VENV%\Scripts\pythonw.exe" if exist "%MARKER%" (
     start "" "%VENV%\Scripts\pythonw.exe" -m paper2stl.gui
     exit /b
@@ -75,7 +103,7 @@ function Die($m)  { Write-Host ""; Write-Host "ERROR: $m" -ForegroundColor Red; 
 
 $Res     = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SrcDir  = Join-Path $Res 'src'
-$Support = Join-Path $env:LOCALAPPDATA 'Paper2STL'
+$Support = Split-Path -Parent $Res          # the app folder (portable)
 $Venv    = Join-Path $Support 'venv'
 $Marker  = Join-Path $Venv '.paper2stl_installed'
 $VPy     = Join-Path $Venv 'Scripts\python.exe'
@@ -160,18 +188,8 @@ try {
     Write-Host ""
     Ok "Installation complete."
 
-    # Desktop shortcut (launches with pythonw -> no console window).
-    try {
-        $ws  = New-Object -ComObject WScript.Shell
-        $lnk = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Paper2STL.lnk'))
-        $lnk.TargetPath       = $VPyw
-        $lnk.Arguments        = '-m paper2stl.gui'
-        $lnk.WorkingDirectory = $Venv
-        $lnk.Save()
-        Ok "Desktop shortcut created."
-    } catch { }
-
     Info "Launching Paper2STL..."
+    $env:PAPER2STL_PORTABLE_DIR = $Support
     Start-Process $VPyw -ArgumentList '-m', 'paper2stl.gui'
 }
 finally {
@@ -179,6 +197,15 @@ finally {
 }
 '@
 Set-Content -Path (Join-Path $Res 'bootstrap.ps1') -Value $bootstrap -Encoding UTF8
+
+# -- 3b. bundle icon -----------------------------------------------------------
+$icoSrc = Join-Path $Repo 'res\ico.ico'
+if (Test-Path $icoSrc) {
+    Copy-Item $icoSrc (Join-Path $Res 'ico.ico') -Force
+    Ok 'Icon bundled'
+} else {
+    Warn 'res\ico.ico not found - shortcut will use default icon'
+}
 
 # -- 4. zip --------------------------------------------------------------------
 Info 'Creating Paper2STL-windows.zip...'

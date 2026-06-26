@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QSettings, Signal, Slot
-from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFileDialog, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
     QProgressBar, QPushButton, QSizePolicy, QSplitter, QStatusBar, QToolBar,
@@ -40,6 +40,9 @@ from paper2stl.gui.panels.params_panel import ParamsPanel
 from paper2stl.gui.widgets.log_view import LogView
 from paper2stl.gui.worker import PipelineWorker
 
+_RES = Path(__file__).parent.parent.parent / "res"
+_ICON_PATH = _RES / "ico.ico" if (_RES / "ico.ico").exists() else _RES / "ico.png"
+
 
 class MainWindow(QMainWindow):
     """Top-level window: toolbar + left/right splitter + bottom log."""
@@ -48,21 +51,37 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self._worker: PipelineWorker | None = None
         self._tmp_dir: str | None = None
-        self._settings = QSettings("Paper2STL", "Paper2STLGUI")
+        self._settings = self._make_settings()
         self._build()
         self._restore_geometry()
+
+    @staticmethod
+    def _make_settings() -> QSettings:
+        """Portable build → settings.ini next to the app; else native store."""
+        portable = os.environ.get("PAPER2STL_PORTABLE_DIR")
+        if portable:
+            ini = str(Path(portable) / "settings.ini")
+            return QSettings(ini, QSettings.Format.IniFormat)
+        return QSettings("Paper2STL", "Paper2STLGUI")
 
     # ── construction ─────────────────────────────────────────────────────────
 
     def _build(self) -> None:
         self.setWindowTitle("Paper2STL — Sketch to STL")
         self.setMinimumSize(900, 620)
+        if _ICON_PATH.exists():
+            self.setWindowIcon(QIcon(str(_ICON_PATH)))
 
         # ── menu bar ──────────────────────────────────────────────────────────
         modules_menu = self.menuBar().addMenu("&Modules")
         extras_act = QAction("Modules optionnels (PyTorch, OCR)…", self)
         extras_act.triggered.connect(self._open_extras)
         modules_menu.addAction(extras_act)
+
+        help_menu = self.menuBar().addMenu("&Aide")
+        about_act = QAction("À propos…", self)
+        about_act.triggered.connect(self._open_about)
+        help_menu.addAction(about_act)
 
         # ── toolbar ──────────────────────────────────────────────────────────
         tb = QToolBar("Main", self)
@@ -87,9 +106,9 @@ class MainWindow(QMainWindow):
         out_lbl.setStyleSheet("font-size:12px; color:#6b7280;")
         tb.addWidget(out_lbl)
 
-        self._out_edit = QLineEdit("output.stl")
-        self._out_edit.setFixedWidth(200)
-        self._out_edit.setPlaceholderText("output.stl")
+        self._out_edit = QLineEdit(str(Path.cwd() / "output.stl"))
+        self._out_edit.setFixedWidth(320)
+        self._out_edit.setPlaceholderText(str(Path.cwd() / "output.stl"))
         tb.addWidget(self._out_edit)
 
         browse_btn = QPushButton("…")
@@ -180,6 +199,14 @@ class MainWindow(QMainWindow):
         # Keep a reference so the non-modal dialog is not garbage-collected.
         self._extras_dialog = ExtrasDialog(self)
         self._extras_dialog.show()
+
+    # ── about dialog ────────────────────────────────────────────────────────────
+
+    def _open_about(self) -> None:
+        from paper2stl.gui.windows.about_dialog import AboutDialog
+        # Keep a reference so the non-modal dialog is not garbage-collected.
+        self._about_dialog = AboutDialog(self)
+        self._about_dialog.show()
 
     # ── output browse ─────────────────────────────────────────────────────────
 

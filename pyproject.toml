@@ -48,3 +48,6 @@ paper2stl-gui = "paper2stl.gui:run_gui"
 
 [tool.setuptools.packages.find]
 include = ["paper2stl*"]
+
+[tool.setuptools.package-data]
+paper2stl = ["res/*.png", "res/*.ico", "res/*.jpg", "res/*.txt"]
