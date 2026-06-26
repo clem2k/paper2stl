@@ -25,7 +25,7 @@ scans/ ──► [A] preprocess ──► [B] metadata ──► [C] reconstruct
 ```
 
 ### For best results
-You can use any paper to use this application, but I found that I was more comfortable and got better results with graph paper (millimeter or centimeter) and a hard pencil (HB or 2H). The printed grid is automatically removed, and the pencil lines are easier to vectorize when they are thin and high-contrast. I have been using RODHIA notebooks for years and get very satisfactory results for my personal use.
+You can use any paper to use this application, but I found that I was more comfortable and got better results with graph paper (millimeter or centimeter) and a hard pencil (HB or 2H). The printed grid is automatically removed, and the pencil lines are easier to vectorize when they are thin and high-contrast. I have been using RHODIA notebooks for years and get very satisfactory results for my personal use.
 
 <p>
   <img src="res/1000055697.jpg" width="30%" />

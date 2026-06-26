@@ -26,7 +26,7 @@ scans/ ──► [A] prétraitement ──► [B] métadonnées ──► [C] re
 ```
 
 ### Pour de meilleurs résultats
-On peut se servir de n'importe quel papier pour utiliser cette application, mais j'ai remarqué que j'étais plus à l'aise et que j'obtenais de meilleurs résultats avec du papier quadrillé (millimétré ou centimétré) et un crayon à mine dure (HB ou 2H). Le quadrillage imprimé est automatiquement supprimé, et les traits de crayon sont plus faciles à vectoriser lorsqu'ils sont fins et contrastés. J'utilise depuis des années des carnets RODHIA et avec j'obtiens des resultats très satisfaisants pour mes usages personnels.
+On peut se servir de n'importe quel papier pour utiliser cette application, mais j'ai remarqué que j'étais plus à l'aise et que j'obtenais de meilleurs résultats avec du papier quadrillé (millimétré ou centimétré) et un crayon à mine dure (HB ou 2H). Le quadrillage imprimé est automatiquement supprimé, et les traits de crayon sont plus faciles à vectoriser lorsqu'ils sont fins et contrastés. J'utilise depuis des années des carnets RHODIA et avec j'obtiens des resultats très satisfaisants pour mes usages personnels.
 
 <p>
   <img src="res/1000055697.jpg" width="30%" />
